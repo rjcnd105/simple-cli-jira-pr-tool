@@ -1,0 +1,19 @@
+---
+alwaysApply: true
+---
+# Bitbucket Cloud API Implementation Guidelines
+
+Bitbucket Cloud API와 상호작용하는 코드를 작성하거나 수정할 때, 반드시 아래의 공식 Swagger 명세서를 최우선 소스(Source of Truth)로 참조하십시오.
+
+- **API 명세서 URL:** `https://dac-static.atlassian.com/cloud/bitbucket/swagger.v3.json?_v=2.300.140-0.1327.0`
+- **대상 버전:** Bitbucket API v2.0
+
+## 주요 준수 사항
+
+1. **엔드포인트 확인:** 모든 API 요청 전에 위 명세서에서 정확한 경로(Paths)와 HTTP 메서드(GET, POST, PUT, DELETE 등)를 확인하십시오.
+2. **데이터 스키마 준수:** 명세서의 `components/schemas`에 정의된 모델 구조를 엄격히 따르십시오. 특히 `$ref`로 참조된 객체 간의 관계를 정확히 파악하여 요청 페이로드(Payload)를 구성하십시오.
+3. **인증 방식:** 명세서에 정의된 보안 스키마(`oauth2`, `basic`, `api_key` 등)에 따라 적절한 인증 헤더를 포함하십시오.
+4. **응답 처리:** 명세서에 정의된 각 상태 코드별(200, 201, 204, 400, 401, 403, 404 등) 응답 스키마를 바탕으로 에러 핸들링 로직을 작성하십시오.
+5. **페이지네이션:** 리스트 조회 API의 경우 `paginated_branches`, `paginated_tags` 등 명세서에 정의된 페이지네이션 구조(size, page, pagelen, next 등)를 사용하여 데이터를 처리하십시오.
+
+위 명세서에 정의되지 않은 임의의 엔드포인트나 필드를 사용하지 않도록 주의하십시오.
