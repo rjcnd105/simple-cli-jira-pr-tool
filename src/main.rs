@@ -1,9 +1,12 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use regex::Regex;
-use reqwest::Client;
+use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::sync::OnceLock;
+
+static JIRA_KEY_REGEX: OnceLock<Regex> = OnceLock::new();
 
 #[derive(Parser)]
 #[command(name = "pr", about = "Jira & Bitbucket PR Automator")]
@@ -178,28 +181,40 @@ impl AppContext {
         })
     }
 
+    // --- API Helpers ---
+    async fn check_status(&self, resp: Response, url: &str, service: &str) -> Result<Response> {
+        if resp.status().is_success() {
+            Ok(resp)
+        } else {
+            let status = resp.status();
+            let error_text = resp.text().await.unwrap_or_default();
+            Err(anyhow::anyhow!(
+                "❌ {} API Fail [{}]: {}\n(URL: {})",
+                service, status, error_text, url
+            ))
+        }
+    }
+
+    fn bb_auth(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        req.basic_auth(&self.atlassian_email, Some(&self.bb_token))
+    }
+
+    fn jira_auth(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        req.basic_auth(&self.atlassian_email, Some(&self.jira_token))
+    }
+
     async fn find_branch(&self, keyword: &str) -> Result<String> {
         let url = format!(
             "https://api.bitbucket.org/2.0/repositories/{}/{}/refs/branches",
             self.bb_workspace, self.bb_repo
         );
 
-        let resp = self.client.get(&url)
-            .basic_auth(&self.atlassian_email, Some(&self.bb_token))
+        let resp = self.bb_auth(self.client.get(&url))
             .query(&[("q", format!("name~\"{}\"", keyword))])
             .send()
             .await?;
 
-        // 에러 디버깅을 위해 상태 코드 확인
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let error_text = resp.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!(
-                "❌ Bitbucket API Fail [{}]: {}\n(URL: {})",
-                status, error_text, url
-            ));
-        }
-
+        let resp = self.check_status(resp, &url, "Bitbucket").await?;
         let resp_json = resp.json::<RepoRefResponse>().await?;
 
         // 1. 정확히 일치하는 브랜치 우선 검색 (dev 등)
@@ -219,28 +234,17 @@ impl AppContext {
             self.bb_workspace, self.bb_repo
         );
 
-        let mut req = self.client.get(&url)
-            .basic_auth(&self.atlassian_email, Some(&self.bb_token))
-            .query(&[("pagelen", "50")]);
-
         let mut q = format!("name~\"{}\"", keyword);
         if let Some(f) = filter {
             q.push_str(&format!(" AND name~\"{}\"", f));
         }
 
-        req = req.query(&[("q", q)]);
+        let resp = self.bb_auth(self.client.get(&url))
+            .query(&[("pagelen", "50"), ("q", q.as_str())])
+            .send()
+            .await?;
 
-        let resp = req.send().await?;
-
-        if !resp.status().is_success() {
-             let status = resp.status();
-             let error_text = resp.text().await.unwrap_or_default();
-             return Err(anyhow::anyhow!(
-                 "❌ Bitbucket API Fail [{}]: {}\n(URL: {})",
-                 status, error_text, url
-             ));
-        }
-
+        let resp = self.check_status(resp, &url, "Bitbucket").await?;
         let resp_json = resp.json::<RepoRefResponse>().await?;
         Ok(resp_json.values.into_iter().map(|b| b.name).collect())
     }
@@ -251,14 +255,12 @@ impl AppContext {
             self.bb_workspace, self.bb_repo
         );
 
-        let resp = self.client.get(&url)
-            .basic_auth(&self.atlassian_email, Some(&self.bb_token))
+        let resp = self.bb_auth(self.client.get(&url))
             .query(&[
-                // ✅ 서버 사이드 필터링 적용: destination이 dev가 아닌 PR만 조회
                 ("q", format!("source.branch.name = \"{}\" AND destination.branch.name != \"dev\"", branch_name)),
                 ("state", "ALL".to_string()),
                 ("sort", "-created_on".to_string()),
-                ("pagelen", "1".to_string()) // 가장 최근 1개만
+                ("pagelen", "1".to_string())
             ])
             .send()
             .await?;
@@ -277,42 +279,29 @@ impl AppContext {
             self.bb_workspace, self.bb_repo
         );
 
-        let resp = self.client.get(&url)
-            .basic_auth(&self.atlassian_email, Some(&self.bb_token))
-            .query(&[("state", "OPEN"), ("pagelen", "50")])
+        let resp = self.bb_auth(self.client.get(&url))
+            .query(&[("state", "OPEN"), ("pagelen", "20")])
             .send()
             .await?;
 
-        if !resp.status().is_success() {
-             let status = resp.status();
-             let error_text = resp.text().await.unwrap_or_default();
-             return Err(anyhow::anyhow!(
-                 "❌ Bitbucket API Fail [{}]: {}\n(URL: {})",
-                 status, error_text, url
-             ));
-        }
-
+        let resp = self.check_status(resp, &url, "Bitbucket").await?;
         let resp_json = resp.json::<RepoPrResponse>().await?;
         Ok(resp_json.values)
     }
 
     async fn get_jira_summary(&self, jira_key: &str) -> Result<String> {
-        // Jira Key가 아닌 경우 (예: dev, main) API 호출 건너뜀
         if !jira_key.contains("-") {
             return Ok(format!("Update from {}", jira_key));
         }
 
         let url = format!("{}/rest/api/3/issue/{}", self.jira_host, jira_key);
 
-        let resp = self.client.get(&url)
-            // ✅ Jira는 여전히 Basic Auth 유지 (이메일 + 토큰)
-            .basic_auth(&self.atlassian_email, Some(&self.jira_token))
+        let resp = self.jira_auth(self.client.get(&url))
             .header("Accept", "application/json")
             .send()
             .await?;
 
         if !resp.status().is_success() {
-            // Jira 권한 문제 등으로 실패 시, 프로세스 죽이지 않고 제목만 fallback
             return Ok(format!("Task {}", jira_key));
         }
 
@@ -332,8 +321,7 @@ impl AppContext {
             destination: BranchRef { branch: BranchName { name: target_branch } },
         };
 
-        let resp = self.client.post(&url)
-            .basic_auth(&self.atlassian_email, Some(&self.bb_token))
+        let resp = self.bb_auth(self.client.post(&url))
             .json(&payload)
             .send()
             .await?;
@@ -377,46 +365,34 @@ impl AppContext {
     }
 
     async fn print_branch_info(&self, branch_name: &str, pr_link: Option<&str>, format: &str) -> Result<()> {
-        let re = Regex::new(r"([A-Z]+-\d+)").unwrap();
+        let re = JIRA_KEY_REGEX.get_or_init(|| Regex::new(r"([A-Z]+-\d+)").unwrap());
 
         let jira_key_opt = re.captures(branch_name)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str().to_string());
 
         // 검색 모드일 때(pr_link가 None일 때) 직접 조회
-        let final_pr_link = if pr_link.is_some() {
-            pr_link.map(|s| s.to_string())
-        } else {
-            let prs = self.get_prs_for_branch(branch_name).await?;
-            prs.first().map(|pr| pr.links.html.href.clone())
+        let final_pr_link = match pr_link {
+            Some(link) => Some(link.to_string()),
+            None => {
+                let prs = self.get_prs_for_branch(branch_name).await?;
+                prs.first().map(|pr| pr.links.html.href.clone())
+            }
         };
 
-        match jira_key_opt {
-            Some(key) => {
-                match self.get_jira_summary(&key).await {
-                    Ok(summary) => self.print_result(Action::Find {
-                        key: Some(&key),
-                        summary: Some(&summary),
-                        pr_link: final_pr_link.as_deref(),
-                        branch: branch_name,
-                    }, format),
-                    Err(_) => self.print_result(Action::Find {
-                        key: Some(&key),
-                        summary: None,
-                        pr_link: final_pr_link.as_deref(),
-                        branch: branch_name,
-                    }, format),
-                }
-            }
-            None => {
-                self.print_result(Action::Find {
-                    key: None,
-                    summary: None,
-                    pr_link: final_pr_link.as_deref(),
-                    branch: branch_name,
-                }, format);
-            }
-        }
+        let summary = if let Some(key) = &jira_key_opt {
+            self.get_jira_summary(key).await.ok()
+        } else {
+            None
+        };
+
+        self.print_result(Action::Find {
+            key: jira_key_opt.as_deref(),
+            summary: summary.as_deref(),
+            pr_link: final_pr_link.as_deref(),
+            branch: branch_name,
+        }, format);
+
         Ok(())
     }
 }

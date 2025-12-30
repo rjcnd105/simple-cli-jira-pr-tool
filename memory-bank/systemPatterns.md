@@ -17,7 +17,9 @@
 - **Authentication**:
     - Bitbucket: Basic Auth (Email + Token)
     - Jira: Basic Auth (Email + Token)
-- **Regex**: 브랜치 이름에서 Jira 키(`PROJ-123`)를 추출하기 위해 정규표현식 사용
+    - `bb_auth`, `jira_auth` 헬퍼 메서드를 통한 중복 제거
+- **Regex**: 브랜치 이름에서 Jira 키(`PROJ-123`)를 추출하기 위해 `OnceLock`을 사용한 정규표현식 캐싱 적용
+- **API Robustness**: `check_status` 공통 메서드를 통한 일관된 에러 처리 및 디버깅 메시지 제공
 
 ## 🔄 Data Flow
 1. 사용자 입력 (CLI)

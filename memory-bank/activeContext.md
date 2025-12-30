@@ -10,6 +10,10 @@
 - 프레임워크 초기화 (`/start`) 수행
 - `projectbrief.md`, `systemPatterns.md`, `techContext.md` 생성
 - `README.md` 작성 및 출력 예제 추가 완료
+- `src/main.rs` 리팩토링 수행:
+    - API 인증 및 에러 처리 헬퍼 메서드 도입
+    - `OnceLock`을 이용한 Regex 캐싱 적용
+    - 코드 중복 제거 및 가독성 개선
 - 기존 코드 베이스 분석 완료
 
 ## 🏁 Next Steps
