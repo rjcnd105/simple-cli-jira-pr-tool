@@ -92,23 +92,7 @@ struct RepoPrResponse {
 
 #[derive(Deserialize)]
 struct RepoPr {
-    // id: i32, // 현재 미사용
-    // title: String, // 현재 미사용
-    source: RepoPrSource,
-    // destination: RepoPrDest, // 필터링이 API 레벨로 이동하여 코드 내에선 미사용
     links: RepoLinks,
-}
-
-/*
-#[derive(Deserialize)]
-struct RepoPrDest {
-    branch: RepoBranch,
-}
-*/
-
-#[derive(Deserialize)]
-struct RepoPrSource {
-    branch: RepoBranch,
 }
 
 #[derive(Deserialize)]
@@ -240,7 +224,7 @@ impl AppContext {
         }
 
         let resp = self.bb_auth(self.client.get(&url))
-            .query(&[("pagelen", "50"), ("q", q.as_str())])
+            .query(&[("pagelen", "20"), ("q", q.as_str())])
             .send()
             .await?;
 
@@ -269,22 +253,6 @@ impl AppContext {
             return Ok(vec![]);
         }
 
-        let resp_json = resp.json::<RepoPrResponse>().await?;
-        Ok(resp_json.values)
-    }
-
-    async fn get_open_prs(&self) -> Result<Vec<RepoPr>> {
-        let url = format!(
-            "https://api.bitbucket.org/2.0/repositories/{}/{}/pullrequests",
-            self.bb_workspace, self.bb_repo
-        );
-
-        let resp = self.bb_auth(self.client.get(&url))
-            .query(&[("state", "OPEN"), ("pagelen", "20")])
-            .send()
-            .await?;
-
-        let resp = self.check_status(resp, &url, "Bitbucket").await?;
         let resp_json = resp.json::<RepoPrResponse>().await?;
         Ok(resp_json.values)
     }
