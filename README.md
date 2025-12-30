@@ -27,14 +27,15 @@ PR을 지라 이슈 기반으로 간단하게 생성하거나, find로 보고용
 특정 키워드가 포함된 브랜치를 검색하고 연결된 Jira 정보를 확인합니다.
 
 ```bash
-cargo run -- bitbucket find --from PROJ-123
+cargo run -- bitbucket find --from PROJ-123 PROJ-124
 ```
 
 **출력 예시:**
 
 ```text
-🔍 Searching branches for 'PROJ-123' (filter: None)...
+🔍 Searching branches for 'PROJ-123, PROG-124' (filter: None)...
 [PROJ-123](https://your-domain.atlassian.net/browse/PROJ-123) 사용자 로그인 시 세션 만료 오류 수정 [PR](https://api.bitbucket.org/2.0/repositories/your_workspace/your_repo/pullrequests/101)
+[PROJ-123](https://your-domain.atlassian.net/browse/PROJ-124) 사용자 인증 노티 처리 [PR](https://api.bitbucket.org/2.0/repositories/your_workspace/your_repo/pullrequests/102)
 ```
 
 ### 2. PR 생성 (`create`)
