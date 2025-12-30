@@ -18,7 +18,7 @@ PR을 지라 이슈 기반으로 간단하게 생성하거나, find로 보고용
 
 ### 환경 변수 설정
 
-프로젝트 루트에 `.env` 파일을 생성하고 다음 정보를 설정해야 합니다.
+.mise.template.toml에 env를 기입하고 파일 명을 .mise.toml로 변경합니다
 
 ```env
 # Bitbucket 설정
