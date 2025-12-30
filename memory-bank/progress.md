@@ -1,9 +1,9 @@
 # σ₅: Progress Tracker
 *v1.0 | Created: 2025-12-30 | Updated: 2025-12-30*
-*Π: Π₂ | Ω: Ω₁*
+*Π: Π₃ | Ω: Ω₄*
 
 ## 📈 Project Status
-Completion: 87% (문서화 상세화 완료)
+Completion: 90% (프레임워크 1.0.5 동기화 완료)
 
 ## 🏁 Milestones
 - [x] 기초 CLI 구조 설계 (Bitbucket/Jira 연동)
@@ -11,6 +11,7 @@ Completion: 87% (문서화 상세화 완료)
 - [x] PR 생성 자동화 기능
 - [x] `CursorRIPER♦Σ Lite` 프레임워크 도입 및 초기화 (S₀-S₆)
 - [x] `README.md` 문서화 및 예제 추가 완료
+- [x] `CursorRIPER♦Σ 1.0.5` 프레임워크 동기화
 - [ ] 모듈화 및 리팩토링 (Pending)
 - [ ] 유닛 테스트 추가 (Pending)
 

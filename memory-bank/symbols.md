@@ -4,7 +4,7 @@
 ## 📁 File Symbols
 - 📂 = `/memory-bank/`
 - 📦 = `/memory-bank/backups/`
-- 𝕄 = [📂projectbrief.md, 📂systemPatterns.md, 📂techContext.md, 📂activeContext.md, 📂progress.md]
+- 𝕄 = [📂projectbrief.md, 📂systemPatterns.md, 📂techContext.md, 📂activeContext.md, 📂progress.md, 📂protection.md]
 
 ## 🛠️ Tool Symbols (𝕋)
 - 𝕋[0]: read_files
