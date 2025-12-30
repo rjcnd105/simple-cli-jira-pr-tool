@@ -20,18 +20,6 @@ PR을 지라 이슈 기반으로 간단하게 생성하거나, find로 보고용
 
 .mise.template.toml에 env를 기입하고 파일 명을 .mise.toml로 변경합니다
 
-```env
-# Bitbucket 설정
-BB_WORKSPACE=your_workspace
-BB_REPO_SLUG=your_repo_slug
-BB_API_TOKEN=your_bitbucket_api_token
-
-# Jira 설정
-JIRA_HOST=https://your-domain.atlassian.net
-ATLASSIAN_EMAIL=your_email@example.com
-JIRA_API_TOKEN=your_jira_api_token
-```
-
 ## 📖 사용 방법
 
 ### 1. 브랜치 및 Jira 이슈 찾기 (`find`)
