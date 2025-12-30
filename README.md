@@ -35,7 +35,7 @@ cargo run -- bitbucket find --from PROJ-123 PROJ-124
 ```text
 🔍 Searching branches for 'PROJ-123, PROG-124' (filter: None)...
 [PROJ-123](https://your-domain.atlassian.net/browse/PROJ-123) 사용자 로그인 시 세션 만료 오류 수정 [PR](https://api.bitbucket.org/2.0/repositories/your_workspace/your_repo/pullrequests/101)
-[PROJ-123](https://your-domain.atlassian.net/browse/PROJ-124) 사용자 인증 노티 처리 [PR](https://api.bitbucket.org/2.0/repositories/your_workspace/your_repo/pullrequests/102)
+[PROJ-124](https://your-domain.atlassian.net/browse/PROJ-124) 사용자 인증 노티 처리 [PR](https://api.bitbucket.org/2.0/repositories/your_workspace/your_repo/pullrequests/102)
 ```
 
 ### 2. PR 생성 (`create`)
