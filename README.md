@@ -14,11 +14,17 @@ PR을 지라 이슈 기반으로 간단하게 생성하거나, find로 보고용
 ### 요구 사항
 
 - **Rust**: edition 2024 이상
-- **mise** (권장): 도구 버전 관리, env, task
+- **mise** (권장): 도구 버전 관리, task
+[https://id.atlassian.com/manage-profile/security/api-tokens](각각 토큰 생성 필요)
+- **Jira token(general token)**
+- **Bitbucket token(scoped token)**
+  - read:pullrequest:bitbucket
+  - read:repository:bitbucket
+  - write:pullrequest:bitbucket
 
 ### 환경 변수 설정
 
-.mise.template.toml에 env를 기입하고 파일 명을 .mise.toml로 변경합니다. (mise를 사용하지 않는다면 .env로 작성)
+.env.template를 기입하고 파일 명을 .env로 변경합니다.
 
 ## 📖 사용 방법
 
