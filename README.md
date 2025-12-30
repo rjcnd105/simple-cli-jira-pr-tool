@@ -1,6 +1,6 @@
 # simple-pr (Jira & Bitbucket PR Automator)
 
-PR을 지라 이슈 기반으로 간단하게 생성하거나, find로 보고용 형식으로 출력하는 cli
+PR을 지라 이슈 기반으로 간단하게 생성하거나, find로 보고용 형식으로 출력하는 cli.
 
 ## 🚀 주요 기능
 
