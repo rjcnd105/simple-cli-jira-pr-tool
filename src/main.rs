@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 static JIRA_KEY_REGEX: OnceLock<Regex> = OnceLock::new();
 
 #[derive(Parser)]
-#[command(name = "pr", about = "Jira & Bitbucket PR Automator")]
+#[command(name = "simple-pr", about = "Jira & Bitbucket PR Automator")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

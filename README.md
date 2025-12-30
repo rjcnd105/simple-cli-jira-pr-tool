@@ -33,6 +33,7 @@ PR을 지라 이슈 기반으로 간단하게 생성하거나, find로 보고용
 ### 1. 브랜치 및 Jira 이슈 찾기 (`find`)
 
 특정 키워드가 포함된 브랜치를 검색하고 연결된 Jira 정보를 확인합니다.
+`--from` 인자가 없는 경우 모든 열린 pr을 기준으로 합니다.
 
 ```bash
 cargo run -- bitbucket find --from PROJ-123 PROJ-124
