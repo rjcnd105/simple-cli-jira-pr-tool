@@ -11,18 +11,18 @@ PR을 지라 이슈 기반으로 간단하게 생성하거나, find로 보고용
 
 ## 🛠️ 설치 및 설정
 
-### 요구 사항
-
-- **Rust**: edition 2024 이상
-- **mise** (권장): 도구 버전 관리, task
-
-[https://id.atlassian.com/manage-profile/security/api-tokens](각각 토큰 생성 필요)
+[각각 아래에 해당하는 토큰 생성 필요](https://id.atlassian.com/manage-profile/security/api-tokens)
 
 - **Jira token(general token)**
 - **Bitbucket token(scoped token)**
   - read:pullrequest:bitbucket
   - read:repository:bitbucket
   - write:pullrequest:bitbucket
+
+### 요구 사항
+
+- **Rust**: edition 2024 이상
+- **mise** (권장): 도구 버전 관리, task
 
 ### 환경 변수 설정
 
