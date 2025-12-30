@@ -18,7 +18,7 @@ PR을 지라 이슈 기반으로 간단하게 생성하거나, find로 보고용
 
 ### 환경 변수 설정
 
-.mise.template.toml에 env를 기입하고 파일 명을 .mise.toml로 변경합니다
+.mise.template.toml에 env를 기입하고 파일 명을 .mise.toml로 변경합니다. (mise를 사용하지 않는다면 .env로 작성)
 
 ## 📖 사용 방법
 

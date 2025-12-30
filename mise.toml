@@ -3,18 +3,10 @@ version = "latest"
 components = "cargo,rustc,rust-std,rustfmt,clippy"
 
 
-[tasks.gm_pr]
-run = "cargo run -- bitbucket"
-env = { BB_REPO_SLUG = "gentle-renewal" }
+# [tasks.example_pr]
+# run = "cargo run -- bitbucket"
+# env = { BB_REPO_SLUG = "your_repo_slug" }
 
-[tasks.gmadm_pr]
-run = "cargo run -- bitbucket"
-env = { BB_REPO_SLUG = "gentlemonster-admin-front" }
-
-[tasks.gm_pr_find]
-run = "cargo run -- bitbucket find --from "
-env = { BB_REPO_SLUG = "gentle-renewal" }
-
-[tasks.gmadm_pr_find]
-run = "cargo run -- bitbucket find --from"
-env = { BB_REPO_SLUG = "gentlemonster-admin-front" }
+# [tasks.example_pr_find]
+# run = "cargo run -- bitbucket find "
+# env = { BB_REPO_SLUG = "your_repo_slug" }
