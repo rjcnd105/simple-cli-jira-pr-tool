@@ -92,7 +92,19 @@ struct RepoPrResponse {
 
 #[derive(Deserialize)]
 struct RepoPr {
+    state: String,
     links: RepoLinks,
+    source: RepoBranchRef,
+}
+
+#[derive(Deserialize)]
+struct RepoBranchRef {
+    branch: RepoBranchName,
+}
+
+#[derive(Deserialize)]
+struct RepoBranchName {
+    name: String,
 }
 
 #[derive(Deserialize)]
@@ -119,8 +131,9 @@ enum Action<'a> {
     Find {
         key: Option<&'a str>,
         summary: Option<&'a str>,
-        pr_link: Option<&'a str>, // URL only
+        pr_link: Option<&'a str>,
         branch: &'a str,
+        state: Option<&'a str>,
     },
     Create {
         src: &'a str,
@@ -212,25 +225,52 @@ impl AppContext {
             .ok_or_else(|| anyhow::anyhow!("Branch not found for keyword: {}", keyword))
     }
 
-    async fn search_branches(&self, keyword: &str, filter: Option<&str>) -> Result<Vec<String>> {
+    // async fn search_branches(&self, keyword: &str, filter: Option<&str>) -> Result<Vec<String>> {
+    //     let url = format!(
+    //         "https://api.bitbucket.org/2.0/repositories/{}/{}/refs/branches",
+    //         self.bb_workspace, self.bb_repo
+    //     );
+
+    //     let mut q = format!("name~\"{}\"", keyword);
+    //     if let Some(f) = filter {
+    //         q.push_str(&format!(" AND name~\"{}\"", f));
+    //     }
+
+    //     let resp = self.bb_auth(self.client.get(&url))
+    //         .query(&[("pagelen", "20"), ("q", q.as_str())])
+    //         .send()
+    //         .await?;
+
+    //     let resp = self.check_status(resp, &url, "Bitbucket").await?;
+    //     let resp_json = resp.json::<RepoRefResponse>().await?;
+    //     Ok(resp_json.values.into_iter().map(|b| b.name).collect())
+    // }
+
+    /// PR 목록에서 source branch 이름으로 직접 검색합니다. (브랜치가 삭제된 병합 PR도 검색 가능)
+    async fn search_prs(&self, keyword: &str, filter_to: Option<&str>) -> Result<Vec<RepoPr>> {
         let url = format!(
-            "https://api.bitbucket.org/2.0/repositories/{}/{}/refs/branches",
+            "https://api.bitbucket.org/2.0/repositories/{}/{}/pullrequests",
             self.bb_workspace, self.bb_repo
         );
 
-        let mut q = format!("name~\"{}\"", keyword);
-        if let Some(f) = filter {
-            q.push_str(&format!(" AND name~\"{}\"", f));
+        let mut q = format!("source.branch.name ~ \"{}\"", keyword);
+        if let Some(f) = filter_to {
+            q.push_str(&format!(" AND destination.branch.name ~ \"{}\"", f));
         }
 
         let resp = self.bb_auth(self.client.get(&url))
-            .query(&[("pagelen", "20"), ("q", q.as_str())])
+            .query(&[
+                ("q", q.as_str()),
+                ("state", "ALL"),
+                ("sort", "-created_on"),
+                ("pagelen", "20")
+            ])
             .send()
             .await?;
 
         let resp = self.check_status(resp, &url, "Bitbucket").await?;
-        let resp_json = resp.json::<RepoRefResponse>().await?;
-        Ok(resp_json.values.into_iter().map(|b| b.name).collect())
+        let resp_json = resp.json::<RepoPrResponse>().await?;
+        Ok(resp_json.values)
     }
 
     async fn get_prs_for_branch(&self, branch_name: &str) -> Result<Vec<RepoPr>> {
@@ -304,10 +344,24 @@ impl AppContext {
 
     fn print_result(&self, action: Action, format: &str) {
         match action {
-            Action::Find { key, summary, pr_link, branch } => {
+            Action::Find { key, summary, pr_link, branch, state } => {
                 let pr_link_str = match pr_link {
                     Some(url) => format!("[PR]({})", url),
                     None => "(No valid PR)".to_string(),
+                };
+
+                let state_str = match state {
+                    Some(s) => {
+                        let icon = match s {
+                            "OPEN" => "🟢",
+                            "MERGED" => "🟣",
+                            "DECLINED" => "🔴",
+                            "SUPERSEDED" => "⚪",
+                            _ => "❓",
+                        };
+                        format!("{} {}", icon, s)
+                    },
+                    None => "".to_string(),
                 };
 
                 match format {
@@ -316,9 +370,9 @@ impl AppContext {
                         if let Some(k) = key {
                             let jira_link = format!("{}/browse/{}", self.jira_host, k);
                             let sum = summary.unwrap_or("(Jira Info Failed)");
-                            println!("[{}]({}) {} {}", k, jira_link, sum, pr_link_str);
+                            println!("[{}]({}) {} {} {}", k, jira_link, sum, pr_link_str, state_str);
                         } else {
-                            println!("{} {}", branch, pr_link_str);
+                            println!("{} {} {}", branch, pr_link_str, state_str);
                         }
                     }
                 }
@@ -332,20 +386,23 @@ impl AppContext {
         }
     }
 
-    async fn print_branch_info(&self, branch_name: &str, pr_link: Option<&str>, format: &str) -> Result<()> {
+    async fn print_branch_info(&self, branch_name: &str, pr_link: Option<&str>, pr_state: Option<&str>, format: &str) -> Result<()> {
         let re = JIRA_KEY_REGEX.get_or_init(|| Regex::new(r"([A-Z]+-\d+)").unwrap());
 
         let jira_key_opt = re.captures(branch_name)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str().to_string());
 
-        // 검색 모드일 때(pr_link가 None일 때) 직접 조회
-        let final_pr_link = match pr_link {
-            Some(link) => Some(link.to_string()),
-            None => {
-                let prs = self.get_prs_for_branch(branch_name).await?;
-                prs.first().map(|pr| pr.links.html.href.clone())
-            }
+        // PR 정보가 없으면 직접 조회
+        let (final_pr_link, final_state) = if pr_link.is_some() {
+            (pr_link.map(|s| s.to_string()), pr_state.map(|s| s.to_string()))
+        } else {
+            let prs = self.get_prs_for_branch(branch_name).await?;
+            let first_pr = prs.first();
+            (
+                first_pr.map(|pr| pr.links.html.href.clone()),
+                first_pr.map(|pr| pr.state.clone())
+            )
         };
 
         let summary = if let Some(key) = &jira_key_opt {
@@ -359,6 +416,7 @@ impl AppContext {
             summary: summary.as_deref(),
             pr_link: final_pr_link.as_deref(),
             branch: branch_name,
+            state: final_state.as_deref(),
         }, format);
 
         Ok(())
@@ -378,21 +436,26 @@ async fn main() -> Result<()> {
             });
 
             match command {
-                // 1. Find Mode
+                // 1. Find Mode (PR 기반 검색 - 브랜치 삭제 여부와 무관하게 검색 가능)
                 BitbucketSubcommands::Find { from, to, format } => {
                     let filter = to.as_deref();
-                    println!("🔍 Searching branches for '{}' (filter: {:?})...", from.join(", "), filter);
+                    println!("🔍 Searching PRs for from-branch '{}' (to-branch filter: {:?})...", from.join(", "), filter);
 
                     for keyword in from {
-                        let branches = app.search_branches(&keyword, filter).await?;
+                        let prs = app.search_prs(&keyword, filter).await?;
 
-                        if branches.is_empty() {
-                            println!("📭 No branches found for '{}'", keyword);
+                        if prs.is_empty() {
+                            println!("📭 No PRs found for source branch '{}'", keyword);
                             continue;
                         }
 
-                        for branch in branches {
-                            app.print_branch_info(&branch, None, &format).await?;
+                        for pr in prs {
+                            app.print_branch_info(
+                                &pr.source.branch.name,
+                                Some(&pr.links.html.href),
+                                Some(&pr.state),
+                                &format
+                            ).await?;
                         }
                     }
                 }
@@ -436,7 +499,7 @@ async fn main() -> Result<()> {
                     if !successful_branches.is_empty() {
                         println!("\n🚀 PR Summary:");
                         for branch in successful_branches {
-                            app.print_branch_info(&branch, None, "md").await?;
+                            app.print_branch_info(&branch, None, None, "md").await?;
                         }
                     }
                 }
