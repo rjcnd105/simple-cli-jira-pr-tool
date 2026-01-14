@@ -342,7 +342,7 @@ impl AppContext {
         }
     }
 
-    fn print_result(&self, action: Action, format: &str) {
+    fn print_result(&self, action: Action, format: &str, is_print_state: bool) {
         match action {
             Action::Find { key, summary, pr_link, branch, state } => {
                 let pr_link_str = match pr_link {
@@ -350,7 +350,8 @@ impl AppContext {
                     None => "(No valid PR)".to_string(),
                 };
 
-                let state_str = match state {
+                let state_str = if is_print_state {
+                    match state {
                     Some(s) => {
                         let icon = match s {
                             "OPEN" => "🟢",
@@ -362,6 +363,9 @@ impl AppContext {
                         format!("{} {}", icon, s)
                     },
                     None => "".to_string(),
+                }
+                } else {
+                    "".to_string()
                 };
 
                 match format {
@@ -417,7 +421,7 @@ impl AppContext {
             pr_link: final_pr_link.as_deref(),
             branch: branch_name,
             state: final_state.as_deref(),
-        }, format);
+        }, format, true);
 
         Ok(())
     }
@@ -483,7 +487,7 @@ async fn main() -> Result<()> {
                                     src: &src_branch,
                                     target: &target_branch,
                                     result: &Ok(())
-                                }, "md");
+                                }, "md", false);
                                 successful_branches.push(src_branch);
                             },
                             Err(e) => {
@@ -491,7 +495,7 @@ async fn main() -> Result<()> {
                                     src: &src_key,
                                     target: &target_branch,
                                     result: &Err(e)
-                                }, "md");
+                                }, "md", false);
                             }
                         }
                     }
