@@ -48,6 +48,10 @@ enum BitbucketSubcommands {
         /// Output format (md, etc.)
         #[arg(long, default_value = "md")]
         format: String,
+
+        /// Show all matching PRs (default: 1 per keyword)
+        #[arg(long, default_value = "false")]
+        all: bool,
     },
     /// Create Pull Requests
     Create {
@@ -167,9 +171,9 @@ impl AppContext {
                 .build()?,
 
             // Bitbucket (Bearer Auth용 토큰만 로드)
-            bb_workspace: env::var("BB_WORKSPACE").context("Env BB_WORKSPACE missing")?,
-            bb_repo:      env::var("BB_REPO_SLUG").context("Env BB_REPO_SLUG missing")?,
-            bb_token:     env::var("BB_API_TOKEN").context("Env BB_API_TOKEN missing")?,
+            bb_workspace: env::var("BITBUCKET_WORKSPACE").context("Env BITBUCKET_WORKSPACE missing")?,
+            bb_repo:      env::var("BITBUCKET_REPO_SLUG").context("Env BITBUCKET_REPO_SLUG missing")?,
+            bb_token:     env::var("BITBUCKET_API_TOKEN").context("Env BITBUCKET_API_TOKEN missing")?,
 
             // Jira (Basic Auth용)
             jira_host:    env::var("JIRA_HOST").context("Env JIRA_HOST missing")?,
@@ -441,9 +445,10 @@ async fn main() -> Result<()> {
 
             match command {
                 // 1. Find Mode (PR 기반 검색 - 브랜치 삭제 여부와 무관하게 검색 가능)
-                BitbucketSubcommands::Find { from, to, format } => {
+                BitbucketSubcommands::Find { from, to, format, all } => {
                     let filter = to.as_deref();
-                    println!("🔍 Searching PRs for from-branch '{}' (to-branch filter: {:?})...", from.join(", "), filter);
+                    let mode = if all { "all" } else { "latest 1 per keyword" };
+                    println!("🔍 Searching PRs for from-branch '{}' (to-branch filter: {:?}, mode: {})...", from.join(", "), filter, mode);
 
                     for keyword in from {
                         let prs = app.search_prs(&keyword, filter).await?;
@@ -453,7 +458,14 @@ async fn main() -> Result<()> {
                             continue;
                         }
 
-                        for pr in prs {
+                        // --all이 없으면 키워드당 최신 1개만 출력
+                        let prs_to_show: Vec<_> = if all {
+                            prs
+                        } else {
+                            prs.into_iter().take(1).collect()
+                        };
+
+                        for pr in prs_to_show {
                             app.print_branch_info(
                                 &pr.source.branch.name,
                                 Some(&pr.links.html.href),
